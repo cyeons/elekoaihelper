@@ -68,10 +68,16 @@ def create_llm():
     """LLM을 생성합니다."""
     try:
         # Streamlit Cloud에서는 secrets를 사용, 로컬에서는 환경변수 사용
-        api_key = st.secrets.get("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY"))
+        # GOOGLE_API_KEY와 GEMINI_API_KEY 모두 지원
+        api_key = (
+            st.secrets.get("GOOGLE_API_KEY") or 
+            st.secrets.get("GEMINI_API_KEY") or
+            os.getenv("GOOGLE_API_KEY") or
+            os.getenv("GEMINI_API_KEY")
+        )
         
         if not api_key:
-            st.error("GOOGLE_API_KEY가 설정되지 않았습니다. 환경변수나 Streamlit secrets를 확인해주세요.")
+            st.error("API 키가 설정되지 않았습니다. GOOGLE_API_KEY 또는 GEMINI_API_KEY를 환경변수나 Streamlit secrets에 설정해주세요.")
             return None
             
         llm = ChatGoogleGenerativeAI(
