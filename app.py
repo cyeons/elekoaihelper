@@ -1,11 +1,12 @@
 import streamlit as st
 import os
-from dotenv import load_dotenv
 import google.generativeai as genai
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# 환경 변수 로드
-load_dotenv()
+# 환경 변수 로드 (로컬에서는 .env, Streamlit Cloud에서는 secrets.toml)
+if os.path.exists('.env'):
+    from dotenv import load_dotenv
+    load_dotenv()
 
 # 페이지 설정
 st.set_page_config(
@@ -66,9 +67,16 @@ def load_curriculum_data():
 def create_llm():
     """LLM을 생성합니다."""
     try:
+        # Streamlit Cloud에서는 secrets를 사용, 로컬에서는 환경변수 사용
+        api_key = st.secrets.get("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY"))
+        
+        if not api_key:
+            st.error("GOOGLE_API_KEY가 설정되지 않았습니다. 환경변수나 Streamlit secrets를 확인해주세요.")
+            return None
+            
         llm = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash-lite",
-            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            google_api_key=api_key,
             temperature=0.7
         )
         return llm

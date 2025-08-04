@@ -1,5 +1,6 @@
 # 환경 변수
 .env
+.streamlit/secrets.toml
 
 # Python
 __pycache__/
