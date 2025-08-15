@@ -258,7 +258,7 @@ def render_common_settings(tab_key=""):
 def render_question_recommendation_tab():
     """질문 추천받기 탭을 렌더링합니다."""
     st.header("🤖 질문 추천받기")
-    st.markdown("질문 카테고리를 선택하면 AI가 자동으로 관련 질문을 생성해드립니다.")
+    st.markdown("AI가 자동으로 적절한 질문을 생성하고 답변해드립니다.")
     
     # 공통 설정
     settings = render_common_settings("recommend")
@@ -275,8 +275,8 @@ def render_question_recommendation_tab():
         key="category_recommend"
     )
     
-    # 질문 생성 버튼
-    if st.button("질문 생성하기", type="primary", use_container_width=True, key="generate_questions"):
+    # 자동 질문하기 버튼
+    if st.button("자동 질문하기", type="primary", use_container_width=True, key="auto_question"):
         # LLM 로드 (처음 한 번만)
         if st.session_state.llm is None:
             with st.spinner("AI 모델을 로드하고 있습니다..."):
@@ -286,37 +286,54 @@ def render_question_recommendation_tab():
                 else:
                     st.error("AI 모델 로드에 실패했습니다.")
         
-        # 질문 생성
+        # 자동 질문 및 답변 생성
         if st.session_state.llm:
             try:
-                with st.spinner("AI가 질문을 생성하고 있습니다..."):
-                    # 질문 생성 프롬프트
-                    question_prompt = generate_question_prompt(
-                        settings['grade'],
-                        settings['semester'],
-                        settings['unit'],
-                        settings['achievement_standard_content'],
-                        question_category
-                    )
+                with st.spinner("AI가 질문을 생성하고 답변을 준비하고 있습니다..."):
+                    # 교육과정 데이터 로드
+                    curriculum_data = load_curriculum_data()
                     
-                    # 질문 생성
-                    response = st.session_state.llm.invoke(question_prompt)
+                    # 자동 질문 및 답변 생성 프롬프트
+                    auto_prompt = f"""
+당신은 초등학교 국어 교사를 위한 AI 도구 활용 전문가입니다.
+
+현재 상황:
+- 학년: {settings['grade']}
+- 학기: {settings['semester']}
+- 단원: {settings['unit']}
+- 성취기준: {settings['achievement_standard_content']}
+- 질문 카테고리: {question_category}
+
+위의 상황에 맞는 가장 적절하고 실용적인 질문 하나를 생성하고, 그에 대한 구체적이고 실용적인 답변을 제공해주세요.
+
+다음 형식으로 답변해주세요:
+
+## 🤔 생성된 질문
+[적절한 질문 하나]
+
+## 💡 AI 답변
+[구체적이고 실용적인 답변]
+
+답변은 다음을 포함해야 합니다:
+- 간결하고 실용적인 조언
+- 구체적인 예시나 단계별 가이드
+- 교사가 바로 적용할 수 있는 팁
+- 안전하고 윤리적인 AI 활용 방법
+"""
                     
-                    # 생성된 질문 표시
-                    st.markdown("### 📝 생성된 질문:")
+                    # 교육과정 데이터가 있으면 추가
+                    if curriculum_data:
+                        auto_prompt += f"\n\n참고할 교육과정 내용:\n{curriculum_data}"
+                    
+                    # 질문 및 답변 생성
+                    response = st.session_state.llm.invoke(auto_prompt)
+                    
+                    # 결과 표시
+                    st.markdown("### 🎯 AI 자동 질문 및 답변:")
                     st.write(response.content)
                     
-                    # 질문 선택을 위한 라디오 버튼
-                    st.markdown("### 🎯 질문 선택:")
-                    st.markdown("위의 질문 중 하나를 선택하여 답변을 받아보세요.")
-                    
-                    # 질문을 세션에 저장
-                    st.session_state.generated_questions = response.content
-                    st.session_state.current_settings = settings
-                    st.session_state.current_category = question_category
-                    
             except Exception as e:
-                st.error(f"질문 생성 중 오류가 발생했습니다: {str(e)}")
+                st.error(f"질문 및 답변 생성 중 오류가 발생했습니다: {str(e)}")
 
 def render_question_input_tab():
     """질문 입력하기 탭을 렌더링합니다."""
@@ -371,7 +388,7 @@ def render_answer_section():
     st.markdown("---")
     
     # 답변 영역
-    if 'current_question' in st.session_state or 'generated_questions' in st.session_state:
+    if 'current_question' in st.session_state:
         st.header("💡 AI 답변")
         
         # 교육과정 데이터 로드
@@ -408,40 +425,7 @@ def render_answer_section():
                         st.markdown("### 답변:")
                         st.write(response.content)
                     
-                    # 질문 추천 탭에서 온 경우
-                    elif 'generated_questions' in st.session_state:
-                        st.markdown("### 📝 생성된 질문:")
-                        st.write(st.session_state.generated_questions)
-                        
-                        st.markdown("### 🎯 질문 선택:")
-                        st.markdown("위의 질문 중 하나를 선택하여 답변을 받아보세요.")
-                        
-                        # 질문 선택을 위한 텍스트 입력
-                        selected_question = st.text_area(
-                            "답변을 받고 싶은 질문을 입력하세요:",
-                            placeholder="위의 질문 중 하나를 복사하여 붙여넣거나, 새로운 질문을 입력하세요.",
-                            height=100
-                        )
-                        
-                        if st.button("답변 받기", type="secondary", key="get_answer"):
-                            if selected_question:
-                                prompt = generate_prompt_template(
-                                    st.session_state.current_settings['grade'],
-                                    st.session_state.current_settings['semester'],
-                                    st.session_state.current_settings['unit'],
-                                    st.session_state.current_settings['achievement_standard_content'],
-                                    selected_question,
-                                    curriculum_data
-                                )
-                                
-                                # 답변 생성
-                                response = st.session_state.llm.invoke(prompt)
-                                
-                                # 답변 표시
-                                st.markdown("### 답변:")
-                                st.write(response.content)
-                            else:
-                                st.error("질문을 입력해주세요.")
+
                     
             except Exception as e:
                 st.error(f"답변 생성 중 오류가 발생했습니다: {str(e)}")
@@ -470,8 +454,7 @@ def main():
         #### 🤖 질문 추천받기:
         1. **설정**: 학년, 학기, 단원, 성취기준을 선택하세요.
         2. **카테고리 선택**: 원하는 질문 카테고리를 선택하세요.
-        3. **질문 생성**: AI가 자동으로 관련 질문을 생성합니다.
-        4. **질문 선택**: 생성된 질문 중 하나를 선택하여 답변을 받으세요.
+        3. **자동 질문하기**: AI가 자동으로 적절한 질문을 생성하고 답변해드립니다.
         
         #### ✍️ 질문 입력하기:
         1. **설정**: 학년, 학기, 단원, 성취기준을 선택하세요.
