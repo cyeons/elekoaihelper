@@ -226,8 +226,7 @@ def render_common_settings(tab_key=""):
             "성취기준을 선택하세요",
             achievement_standards,
             key=f"achievement_{tab_key}",
-            help="긴 성취기준 문장을 모두 확인할 수 있도록 전체 너비를 사용합니다.",
-            disabled=True
+            help="긴 성취기준 문장을 모두 확인할 수 있도록 전체 너비를 사용합니다."
         )
         
         # 성취기준 내용 자동 설정
@@ -237,16 +236,20 @@ def render_common_settings(tab_key=""):
         if selected_achievement_standard:
             st.info(f"**선택된 성취기준:** {selected_achievement_standard}")
     else:
-        col4, col5 = st.columns([1, 1])
-        with col4:
-            selected_achievement_standard = st.text_input("성취기준명 입력", placeholder="예: 바른 자세로 듣는 습관을 기른다.", key=f"achievement_input_{tab_key}")
-        with col5:
-            achievement_standard_content = st.text_area(
-                "성취기준 내용 입력",
-                placeholder="해당 성취기준의 내용을 입력해주세요.",
-                height=100,
-                key=f"achievement_content_{tab_key}"
-            )
+        # 미리 정의되지 않은 경우 기본 선택지 제공
+        default_achievements = [
+            "성취기준을 선택해주세요",
+            "기본 성취기준 1",
+            "기본 성취기준 2",
+            "기본 성취기준 3"
+        ]
+        selected_achievement_standard = st.selectbox(
+            "성취기준을 선택하세요",
+            default_achievements,
+            key=f"achievement_{tab_key}",
+            help="미리 정의된 성취기준 중에서 선택하세요."
+        )
+        achievement_standard_content = selected_achievement_standard
     
     return {
         "grade": grade,
