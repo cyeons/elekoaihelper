@@ -2,6 +2,9 @@ import streamlit as st
 import os
 import google.generativeai as genai
 from langchain_google_genai import ChatGoogleGenerativeAI
+import time
+import threading
+import requests
 
 # 환경 변수 로드 (로컬에서는 .env, Streamlit Cloud에서는 secrets.toml)
 if os.path.exists('.env'):
@@ -15,9 +18,31 @@ st.set_page_config(
     layout="wide"
 )
 
+# 자동 새로고침 설정 (30초마다)
+if 'auto_refresh' not in st.session_state:
+    st.session_state.auto_refresh = True
+
 # 세션 상태 초기화
 if 'llm' not in st.session_state:
     st.session_state.llm = None
+if 'last_activity' not in st.session_state:
+    st.session_state.last_activity = time.time()
+
+# 자동 새로고침 기능
+def auto_refresh():
+    """자동 새로고침을 위한 함수"""
+    if st.session_state.auto_refresh:
+        time.sleep(30)  # 30초 대기
+        st.rerun()
+
+# 백그라운드에서 자동 새로고침 실행
+if st.session_state.auto_refresh:
+    try:
+        # 스레드로 백그라운드 실행
+        refresh_thread = threading.Thread(target=auto_refresh, daemon=True)
+        refresh_thread.start()
+    except:
+        pass
 
 # 3학년 1~2학기 데이터 (사용자가 내용을 채워넣을 예정)
 GRADE_3_DATA = {
@@ -264,6 +289,9 @@ def render_question_recommendation_tab():
     st.header("🤖 질문 추천받기")
     st.markdown("AI가 자동으로 적절한 질문을 생성하고 답변해드립니다.")
     
+    # 활동 감지 - 마지막 활동 시간 업데이트
+    st.session_state.last_activity = time.time()
+    
     # 공통 설정
     settings = render_common_settings("recommend")
     
@@ -343,6 +371,9 @@ def render_question_input_tab():
     """질문 입력하기 탭을 렌더링합니다."""
     st.header("✍️ 질문 입력하기")
     st.markdown("직접 질문을 입력하여 AI 답변을 받아보세요.")
+    
+    # 활동 감지 - 마지막 활동 시간 업데이트
+    st.session_state.last_activity = time.time()
     
     # 공통 설정
     settings = render_common_settings("input")
@@ -438,6 +469,24 @@ def main():
     st.title("📚 초등국어 AI 도구 활용 가이드")
     st.markdown("---")
     
+    # 자동 새로고침 설정 (사이드바에 배치)
+    with st.sidebar:
+        st.markdown("### ⚙️ 설정")
+        auto_refresh = st.checkbox(
+            "자동 새로고침 (30초마다)", 
+            value=st.session_state.auto_refresh,
+            help="스트림릿 클라우드에서 앱이 종료되는 것을 방지합니다."
+        )
+        
+        if auto_refresh != st.session_state.auto_refresh:
+            st.session_state.auto_refresh = auto_refresh
+            st.rerun()
+        
+        # 마지막 활동 시간 표시
+        if 'last_activity' in st.session_state:
+            elapsed = int(time.time() - st.session_state.last_activity)
+            st.info(f"마지막 활동: {elapsed}초 전")
+    
     # 탭 생성
     tab1, tab2 = st.tabs(["🤖 질문 추천받기", "✍️ 질문 입력하기"])
     
@@ -474,6 +523,10 @@ def main():
         
         ### 현재 지원 학년:
         - 3학년 1학기, 2학기
+        
+        ### 💡 팁:
+        - 자동 새로고침을 활성화하면 스트림릿 클라우드에서 앱이 종료되는 것을 방지할 수 있습니다.
+        - 30초마다 자동으로 페이지가 새로고침되어 세션이 유지됩니다.
         """)
 
 if __name__ == "__main__":
